@@ -1,29 +1,32 @@
-odoo.define("pos_product_multi_barcode.db", function (require) {
-    "use strict";
+/** @odoo-module **/
 
-    var PosDB = require("point_of_sale.DB");
+import {patch} from "@web/core/utils/patch";
+import { PosDB } from "@point_of_sale/app/store/db";
 
-    PosDB.include({
-        _product_search_string: function (product) {
-            var str = this._super(product);
-            if (product.barcodes_json) {
-                const barcodes = JSON.parse(product.barcodes_json).join(",");
-                str = str.replace("\n", "|" + barcodes) + "\n";
-            }
-            return str;
-        },
-        add_products: function (products) {
-            var res = this._super(products);
-            var self = this;
 
-            products.forEach(function (product) {
-                var barcodes = JSON.parse(product.barcodes_json);
 
-                barcodes.forEach(function (barcode) {
-                    self.product_by_barcode[barcode] = product;
-                });
+patch(PosDB.prototype, {
+    _product_search_string(product) {
+        var str = super._product_search_string(...arguments);
+        if (product.barcodes_json !== '[]' && product.barcodes_json !== '') {
+            const barcodes = JSON.parse(product.barcodes_json);
+            barcodes.forEach(barcode => {
+                str = str.replace("\n", "|" + barcode) + "\n";
             });
-            return res;
-        },
-    });
+        }
+        return str;
+    },
+    add_products(products) {
+        var res = super.add_products(...arguments);
+        var self = this;
+
+        products.forEach(product => {
+            var barcodes = JSON.parse(product.barcodes_json);
+
+            barcodes.forEach(barcode => {
+                self.product_by_barcode[barcode] = product;
+            });
+        });
+        return res;
+    },
 });
